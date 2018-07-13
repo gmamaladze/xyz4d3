@@ -1,0 +1,113 @@
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1,IE=edge">
+
+    <script src="http://d3js.org/d3.v4.min.js"></script>
+    <script src="https://d3js.org/d3-selection-multi.v1.min.js"></script>
+
+    <script type='text/javascript' src='http://www.x3dom.org/download/1.7/x3dom-full.js'></script>
+    <link rel='stylesheet' type='text/css' href='http://www.x3dom.org/download/1.7/x3dom.css'></link>
+
+    <script src="/build/xyz4d3.js"></script>
+</head>
+
+<body>
+<form>
+    <label><input type="radio" name="mode" value="box" checked> Box</label>
+    <label><input type="radio" name="mode" value="cylinder"> Cylinder</label>
+    <label><input type="radio" name="mode" value="pyramid"> Pyramid</label>
+    <label><input type="radio" name="mode" value="cone"> Cone</label>
+</form>
+<script type="text/javascript">
+    'use strict';
+    /* global d3:true */
+    /* global xyz4d3:true */
+
+    var vis = xyz4d3.vis("body");
+
+
+    var width = 100;
+    var height = 100;
+
+    var x = d3.scaleBand().rangeRound([0, width]).padding(0.1);
+    var y = d3.scaleLinear().rangeRound([height, 0]);
+
+    var color = d3.schemeCategory10;
+
+    d3.tsv("data.tsv", function (error, data) {
+        if (error) throw error;
+
+        shapeChanging();
+
+        x.domain(data.map(function (d) {
+            return d.letter;
+        })).range([0, width]);
+        y.domain([0, d3.max(data, function (d) {
+            return d.frequency;
+        })]).range([0, height]);
+
+        update(xyz4d3.box);
+        setTimeout(function () {
+            vis.runtime.showAll();
+            vis.setCenter([width / 2, 0, 0]);
+        }, 100);
+
+        function update(shape) {
+
+            vis.scene.selectAll(".bar").remove();
+
+            vis.scene.selectAll(".bar")
+                .data(data)
+                .enter()
+                .append(shape)
+                .attr("class", "bar")
+                .attr3d(shape.x, function (d) {
+                    return x(d.letter)
+                })
+                .attr3d(shape.y, function (d) {
+                    return y(d.frequency) / 2
+                })
+                .attr3d(shape.width, x.bandwidth())
+                .attr3d(shape.height, function (d) {
+                    return y(d.frequency)
+                })
+                .attr3d(shape.depth, x.bandwidth())
+                .attr3d(shape.fill, function (d, i) {
+                    return color[i]
+                })
+                .attr3d(shape.opacity, 0.9);
+
+        }
+
+        function shapeChanging() {
+
+            var options = [xyz4d3.box, xyz4d3.cylinder, xyz4d3.pyramid, xyz4d3.cone];
+
+            d3.selectAll("input")
+                .data(options)
+                .on("change", changed);
+
+            var index = 0
+            var timer = setInterval(function () {
+                var selected = options[index];
+                index = (index + 1) % options.length;
+                d3.selectAll("input").property("checked", function (d) {
+                    return d === selected;
+                });
+                update(selected);
+            }, 1000);
+
+            function changed(shape) {
+                clearInterval(timer);
+                update(shape);
+            }
+        }
+    });
+
+
+</script>
+</body>
+
+</html>

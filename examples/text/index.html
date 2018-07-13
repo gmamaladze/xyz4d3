@@ -1,0 +1,92 @@
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1,IE=edge">
+
+    <script src="http://d3js.org/d3.v4.min.js"></script>
+    <script src="https://d3js.org/d3-selection-multi.v1.min.js"></script>
+
+    <script type='text/javascript' src='http://www.x3dom.org/download/1.7/x3dom-full.js'></script>
+    <link rel='stylesheet' type='text/css' href='http://www.x3dom.org/download/1.7/x3dom.css'></link>
+
+    <script src="/build/xyz4d3.js"></script>
+</head>
+
+<body>
+
+<script type="text/javascript">
+    'use strict';
+    /* global d3:true */
+    /* global xyz4d3:true */
+    var vis = xyz4d3.vis("body");
+
+
+    var width = 100;
+    var height = 100;
+
+    var x = d3.scaleBand().rangeRound([0, width]).padding(0.1);
+    var y = d3.scaleLinear().rangeRound([height, 0]);
+
+    var color = d3.schemeCategory10;
+
+    d3.tsv("data.tsv", function (error, data) {
+        if (error) throw error;
+
+        x.domain(data.map(function (d) {
+            return d.letter;
+        })).range([0, width]);
+        y.domain([0, d3.max(data, function (d) {
+            return d.frequency;
+        })]).range([0, height]);
+
+        vis.scene.selectAll(".bar")
+            .data(data)
+            .enter().append(xyz4d3.box)
+            .attr("class", "bar")
+            .attr3d(xyz4d3.box.x, function (d) {
+                return x(d.letter)
+            })
+            .attr3d(xyz4d3.box.y, function (d) {
+                return y(d.frequency) / 2
+            })
+            .attr3d(xyz4d3.box.width, x.bandwidth())
+            .attr3d(xyz4d3.box.height, function (d) {
+                return y(d.frequency)
+            })
+            .attr3d(xyz4d3.box.depth, x.bandwidth())
+            .attr3d(xyz4d3.box.fill, function (d, i) {
+                return color[i]
+            })
+            .attr3d(xyz4d3.box.opacity, 0.9);
+
+        vis.scene.selectAll(".text")
+            .data(data)
+            .enter().append(xyz4d3.text)
+            .attr("class", "text")
+            .attr3d(xyz4d3.text.text, function (d) {
+                return Math.floor(d.frequency * 100) + "%"
+            })
+            .attr3d(xyz4d3.text.x, function (d) {
+                return x(d.letter)
+            })
+            .attr3d(xyz4d3.text.z, function (d) {
+                return x.bandwidth() / 2 + 1;
+            })
+            .attr3d(xyz4d3.text.y, function (d) {
+                return y(d.frequency) / 2
+            })
+            .attr3d(xyz4d3.text.fill, "black")
+            .attr3d(xyz4d3.text.fontSize, 5)
+            .attr3d(xyz4d3.text.fontQuality, 3)
+            .attr3d(xyz4d3.text.fontFamily, "TYPEWRITER");
+
+        vis.runtime.showAll();
+        vis.setCenter([width / 2, 0, 0]);
+    });
+
+
+</script>
+</body>
+
+</html>

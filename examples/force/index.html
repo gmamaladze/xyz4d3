@@ -1,0 +1,110 @@
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1,IE=edge">
+
+    <script src="http://d3js.org/d3.v4.min.js"></script>
+    <script src="https://d3js.org/d3-selection-multi.v1.min.js"></script>
+
+    <script type='text/javascript' src='http://www.x3dom.org/download/1.7/x3dom-full.js'></script>
+    <link rel='stylesheet' type='text/css' href='http://www.x3dom.org/download/1.7/x3dom.css'></link>
+
+    <script src="/build/xyz4d3.js"></script>
+</head>
+
+<body>
+
+<script type="text/javascript">
+    'use strict';
+    /* global d3:true */
+    /* global xyz4d3:true */
+    var vis = xyz4d3.vis("body");
+
+    var color = d3.scaleOrdinal(d3.schemeCategory20);
+
+    var simulation = xyz4d3.forceSimulation()
+        .force("link", xyz4d3.forceLink().id(function (d) {
+            return d.id;
+        }))
+        .force("charge", xyz4d3.forceManyBody())
+        .force("center", xyz4d3.forceCenter(0, 0, 0));
+
+    var counter = 0;
+    var handle = setInterval(function () {
+        vis.runtime.showAll();
+        simulation.restart();
+        if (counter++ > 20) clearInterval(handle);
+        //vis.setCenter([width/2, 0, 0]);
+    }, 100);
+
+    d3.json("miserables.json", function (error, graph) {
+        if (error) throw error;
+
+        var link = vis.scene
+            .selectAll(".line")
+            .data(graph.links)
+            .enter().append(xyz4d3.line)
+            .attr3d(xyz4d3.line.stroke, "gray");
+
+        var node = vis.scene
+            .selectAll(".circle")
+            .data(graph.nodes)
+            .enter().append(xyz4d3.sphere)
+            .attr3d(xyz4d3.sphere.radius, 5)
+            .attr3d(xyz4d3.sphere.fill, function (d) {
+                return color(d.group);
+            })
+            .call(xyz4d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
+
+        simulation
+            .nodes(graph.nodes)
+            .force("collide", xyz4d3.forceCollide(2).radius(10).iterations(1))
+            .on("tick", ticked);
+
+        simulation.force("link")
+            .links(graph.links);
+
+        function ticked() {
+
+            link
+                .attr3d(xyz4d3.line.points, function (d) {
+                    return [
+                        [d.source.x, d.source.y, d.source.z],
+                        [d.target.x, d.target.y, d.target.z]];
+                });
+
+            node
+                .attr3d(xyz4d3.sphere.position, function (d) {
+                    return [d.x, d.y, d.z];
+                });
+        }
+    });
+
+    function dragstarted(d) {
+        if (!xyz4d3.event.active) simulation.alphaTarget(0.1).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+        d.fz = d.z;
+    }
+
+    function dragged(d) {
+        d.fx = xyz4d3.event.x;
+        d.fy = xyz4d3.event.y;
+        d.fz = xyz4d3.event.z;
+    }
+
+    function dragended(d) {
+        if (!xyz4d3.event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+        d.fz = null;
+    }
+
+</script>
+</body>
+
+</html>

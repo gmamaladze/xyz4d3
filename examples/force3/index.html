@@ -1,0 +1,169 @@
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1,IE=edge">
+
+    <script src="http://d3js.org/d3.v4.min.js"></script>
+    <script src="https://d3js.org/d3-selection-multi.v1.min.js"></script>
+
+    <script type='text/javascript' src='http://www.x3dom.org/download/1.7/x3dom-full.js'></script>
+    <link rel='stylesheet' type='text/css' href='http://www.x3dom.org/download/1.7/x3dom.css'></link>
+
+    <script src="/build/xyz4d3.js"></script>
+</head>
+
+<body>
+
+Migrated from: https://bl.ocks.org/colbenkharrl/21b3808492b93a21de841bc5ceac4e47
+<button type="button" id="switch-btn">Switch Links</button>
+
+<script type="text/javascript">
+    'use strict';
+    /* global d3:true */
+    /* global xyz4d3:true */
+
+    //	graph data store
+    var graph;
+
+    //	state variable for current link set
+    var firstLinks = true;
+
+    //	svg and sizing
+    var vis = xyz4d3.vis("body");
+    var svg = vis.scene;
+
+    //	d3 color scheme
+    var color = d3.scaleOrdinal(d3.schemeCategory10);
+
+    // elements for data join
+    var link = svg.append(xyz4d3.group).selectAll(".link"),
+        node = svg.append(xyz4d3.group).selectAll(".node");
+
+    //	simulation initialization
+    var simulation = xyz4d3.forceSimulation()
+        .force("link", xyz4d3.forceLink()
+            .id(function (d) {
+                return d.id;
+            }))
+        .force("charge", xyz4d3.forceManyBody()
+            .strength(function (d) {
+                return -500;
+            }))
+        .force("center", xyz4d3.forceCenter(0, 0));
+
+    //	button event handling
+    d3.select("#switch-btn").on("click", function () {
+        firstLinks = !firstLinks;
+        update();
+    });
+
+    //	load and save data
+    d3.json("blocks-data.json", function (err, g) {
+        if (err) throw err;
+
+        graph = g;
+
+        update();
+    });
+
+    //	follow v4 general update pattern
+    function update() {
+        // Update link set based on current state
+        // DATA JOIN
+        link = link.data(firstLinks ? graph.links1 : graph.links2);
+
+        // EXIT
+        // Remove old links
+        link.exit().remove();
+
+        // ENTER
+        // Create new links as needed.
+        link = link.enter().append(xyz4d3.line)
+            .attr("class", "link")
+            .merge(link);
+
+        // DATA JOIN
+        node = node.data(graph.nodes);
+
+        // EXIT
+        node.exit().remove();
+
+        // ENTER
+        node = node.enter().append(xyz4d3.sphere)
+            .attr("class", "node")
+            .attr3d(xyz4d3.sphere.radius, 10)
+            .attr3d(xyz4d3.sphere.fill, function (d) {
+                return color(d.group);
+            })
+            .call(xyz4d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended)
+            )
+            .merge(node);
+
+        //	Set nodes, links, and alpha target for simulation
+        simulation
+            .nodes(graph.nodes)
+            .on("tick", ticked);
+
+        simulation.force("link")
+            .links(firstLinks ? graph.links1 : graph.links2);
+
+        simulation.alphaTarget(0.3).restart();
+
+
+        //	tick event handler (nodes bound to container)
+        function ticked() {
+            link
+                .attr3d(xyz4d3.line.points, function (d) {
+                    return [
+                        [d.source.x, d.source.y, d.source.z],
+                        [d.target.x, d.target.y, d.target.z]];
+                });
+
+            node
+                .attr3d(xyz4d3.sphere.cx, function (d) {
+                    return d.x;
+                })
+                .attr3d(xyz4d3.sphere.cy, function (d) {
+                    return d.y;
+                })
+                .attr3d(xyz4d3.sphere.cz, function (d) {
+                    return d.z;
+                });
+        }
+
+        function dragstarted(d) {
+            if (!xyz4d3.event.active) simulation.alphaTarget(.03).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+            d.fz = d.z;
+        }
+
+        function dragged(d) {
+            d.fx = xyz4d3.event.x;
+            d.fy = xyz4d3.event.y;
+            d.fz = xyz4d3.event.z;
+        }
+
+        function dragended(d) {
+            if (!xyz4d3.event.active) simulation.alphaTarget(.03);
+            d.fx = null;
+            d.fy = null;
+            d.fz = null;
+        }
+
+        var counter = 0;
+        var handle = setInterval(function () {
+            vis.runtime.showAll();
+            simulation.restart();
+            if (counter++ > 20) clearInterval(handle);
+            //vis.setCenter([width/2, 0, 0]);
+        }, 100);
+    }
+</script>
+</body>
+
+</html>

@@ -1,0 +1,149 @@
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1,IE=edge">
+
+    <script src="http://d3js.org/d3.v4.min.js"></script>
+    <script src="https://d3js.org/d3-selection-multi.v1.min.js"></script>
+
+    <script type='text/javascript' src='http://www.x3dom.org/download/1.7/x3dom-full.js'></script>
+    <link rel='stylesheet' type='text/css' href='http://www.x3dom.org/download/1.7/x3dom.css'></link>
+
+    <script src="/build/xyz4d3.js"></script>
+</head>
+
+<body>
+
+<script>
+
+    'use strict';
+    /* global d3:true */
+    /* global xyz4d3:true */
+
+    var vis = xyz4d3.vis("body");
+
+    var i = 0,
+        duration = 750,
+        root;
+
+    var tree = d3.tree()
+        .nodeSize([15, 15])
+
+    d3.json("flare.json", function (error, flare) {
+        if (error) throw error;
+
+        root = flare;
+        root.x = 0;
+        root.y = 0;
+        root.z = 0;
+
+        // Toggle children on click.
+        function toggle(d, deep = false) {
+            if (d.children) {
+                d._children = d.children;
+                d.children = null;
+                if (!d._children || !deep) return;
+                d._children.forEach(function (ch) {
+                    toggle(ch, deep)
+                });
+            } else {
+                d.children = d._children;
+                d._children = null;
+                if (!d.children || !deep) return;
+                d.children.forEach(function (ch) {
+                    toggle(ch, deep)
+                });
+            }
+        }
+
+        var color = d3.schemeCategory20;
+        root.children.forEach(function (d) {
+            toggle(d, true);
+        });
+
+
+        update(root);
+
+        function update(source) {
+
+            setTimeout(function () {
+                vis.runtime.showAll()
+            }, 1000);
+            var a = d3.hierarchy(root)
+            tree(a);
+
+            // Compute the new tree layout.
+            var nodes = a.descendants();
+            nodes.forEach(function (d) {
+                d.y = d.y * 3;
+                d.z = 0;
+            });
+
+            // Update the nodes…
+            var node = vis.scene.selectAll(".node")
+                .data(nodes, function (d) {
+                    return d.data.id || (d.data.id = ++i);
+                });
+
+            // Enter any new nodes at the parent's previous position.
+            node.enter()
+                .append(xyz4d3.sphere)
+                .attr("class", "node")
+                .attr3d(xyz4d3.shape.position, {x: source.x, y: source.y, z: source.z})
+                .attr3d(xyz4d3.sphere.radius, 1e-6)
+                .attr3d(xyz4d3.sphere.fill, function (d) {
+                    return d.depth < 2 ? color[d.data.id] : "#fff";
+                })
+                .on("click", (d) => {
+                    toggle(d.data);
+                    update(d);
+                })
+                .merge(node)
+                .transition()
+                .duration(duration)
+                .attr3d(xyz4d3.sphere.position, function (d) {
+                    return {x: d.x, y: d.y, z: d.z}
+                })
+                .attr3d(xyz4d3.sphere.radius, 5)
+                .attr3d(xyz4d3.sphere.fill, function (d) {
+                    return d.color ? d.color : d.color = d.depth < 2 ? color[d.data.id] : d.parent.color;
+                })
+                .attr3d(xyz4d3.sphere.opacity, function (d) {
+                    return d.data._children || d.data.children ? 1 : 0.5;
+                });
+
+            // Transition exiting nodes to the parent's new position.
+            node.exit().transition()
+                .duration(duration)
+                .attr3d(xyz4d3.sphere.position, function (d) {
+                    return {x: d.parent.x, y: d.parent.y, z: 0}
+                })
+                .attr3d(xyz4d3.sphere.radius, 1e-6)
+                .remove();
+
+            var links = a.links();
+
+            var link = vis.scene.selectAll(".link")
+                .data(links, function (d) {
+                    return d.target.data.id;
+                });
+
+            link.enter()
+                .append(xyz4d3.line)
+                .attr("class", "link")
+                .attr3d(xyz4d3.line.points, [source, source])
+                .attr3d(xyz4d3.line.stroke, (d) => "lightgray")
+                .merge(link)
+                .transition()
+                .duration(duration)
+                .attr3d(xyz4d3.line.points, (d) => [d.source, d.target]);
+
+            link.exit()
+                .transition()
+                .duration(duration)
+                .attr3d(xyz4d3.line.points, (d) => [d.source, d.source])
+                .remove();
+        }
+    });
+</script>
