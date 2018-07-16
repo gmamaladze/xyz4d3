@@ -4,15 +4,13 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "rollup -c",
-    "prepublish": "rollup -c && uglifyjs build/xyz4d3.js -c negate_iife=false -m -o build/xyz4d3.min.js"
+    "build": "rollup -c"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/gmamaladze/xyz4d3.git"
   },
-  "author": "George Mamaladze",
+  "author": "Huawei",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/gmamaladze/xyz4d3/issues"
